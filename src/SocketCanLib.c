@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -9,6 +11,8 @@
 #include <linux/can/raw.h>
 #include <linux/can/error.h>
 #include <unistd.h>
+
+#include <stdio.h>
 
 #include "SocketCanLib.h"
 
@@ -45,15 +49,18 @@ int SocketOpen (char *InterfaceName)
     const int timestamp_on = 1;
     if (setsockopt(number, SOL_SOCKET, SO_TIMESTAMP,
 		    &timestamp_on, sizeof(timestamp_on)) < 0) {
-	    perror("setsockopt SO_TIMESTAMP");
-	    return -10;
+      perror("setsockopt SO_TIMESTAMP");
+      return -10;
     }
 
     // Ошибки
-//    can_err_mask_t err_mask = ( CAN_ERR_TX_TIMEOUT | CAN_ERR_LOSTARB | CAN_ERR_CRTL | CAN_ERR_PROT | CAN_ERR_TRX | CAN_ERR_ACK
-//                                | CAN_ERR_BUSOFF | CAN_ERR_BUSERROR | CAN_ERR_RESTARTED );
-//    setsockopt(number, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
-//               &err_mask, sizeof(err_mask));
+   can_err_mask_t err_mask = ( CAN_ERR_TX_TIMEOUT | CAN_ERR_LOSTARB | CAN_ERR_CRTL | CAN_ERR_PROT | CAN_ERR_TRX | CAN_ERR_ACK
+                               | CAN_ERR_BUSOFF | CAN_ERR_BUSERROR | CAN_ERR_RESTARTED );
+   if (setsockopt(number, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
+              &err_mask, sizeof(err_mask)) < 0) {
+      perror("setsockopt CAN_RAW_ERR_FILTER");
+      return -11;
+   }
 
     // Биндим сокет на нужный интерфейс
     struct sockaddr_can addr;
@@ -81,60 +88,74 @@ int SocketClose (int number)
     }
 }
 
-int SocketRead (int Socket, struct can_frame *Frame)
+int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int TimeoutMs)
 {
-  struct msghdr msg;
-  
-//   struct sockaddr_can addr;
-//   addr.can_family = AF_CAN;
-//   addr.can_ifindex = ifr.ifr_ifindex;
-//   msg.msg_name = &addr;
-//   msg.msg_namelen = sizeof(addr);
-  msg.msg_name = NULL;
-  msg.msg_namelen = 0;
-  
-  struct iovec iov;
-//   struct canfd_frame frame;
-  iov.iov_base = Frame;
-  iov.iov_len = sizeof(struct can_frame);
-  msg.msg_iov = &iov;
-  msg.msg_iovlen = 1;
-  
-  char ctrlmsg[CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32))];
-  msg.msg_control = &ctrlmsg;
-  msg.msg_controllen = sizeof(ctrlmsg);
-  
-  msg.msg_flags = 0;
-  
-  int nbytes;
-  nbytes = recvmsg(Socket, &msg, 0);
-  if (nbytes < 0) {
-	  perror("read");
-	  return -1;
+  struct mmsghdr *msgs = calloc (BagsCount, sizeof (struct mmsghdr));
+  struct iovec *iovs = calloc (BagsCount, sizeof (struct iovec));
+  char **ctrlmsgs = calloc(BagsCount, CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32)));
+
+  unsigned int i;
+  for (i = 0; i < BagsCount; i++) {
+    msgs[i].msg_hdr.msg_name = NULL;
+    msgs[i].msg_hdr.msg_namelen = 0;
+    
+    iovs[i].iov_base = (void *) &Bags[i];
+    iovs[i].iov_len = sizeof(struct can_frame);
+    msgs[i].msg_hdr.msg_iov = &iovs[i];
+    msgs[i].msg_hdr.msg_iovlen = 1;
+    
+    msgs[i].msg_hdr.msg_control = &ctrlmsgs[i];
+    msgs[i].msg_hdr.msg_controllen = CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32));
+    
+    msgs[i].msg_hdr.msg_flags = 0;
   }
   
-  struct timeval tv;
+  struct timespec timeout;
+  timeout.tv_sec = TimeoutMs/1000;
+  timeout.tv_nsec = (TimeoutMs%1000)*1000;
   
-  struct cmsghdr *cmsg;
-  for (cmsg = CMSG_FIRSTHDR(&msg);
-	cmsg && (cmsg->cmsg_level == SOL_SOCKET);
-	cmsg = CMSG_NXTHDR(&msg,cmsg)) {
-	  if (cmsg->cmsg_type == SO_TIMESTAMP)
-		  tv = *(struct timeval *)CMSG_DATA(cmsg);
+  int rcount;
+  rcount = recvmmsg(Socket, msgs, BagsCount, MSG_WAITFORONE, &timeout);
+  
+  printf ("lib: ------ RECV [%02d messages]------ \n", rcount);
+  
+  for (i = 0; i < rcount; i ++) {
+    struct timeval tv;
+
+    struct cmsghdr *cmsg;
+    for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
+	  cmsg && (cmsg->cmsg_level == SOL_SOCKET);
+	  cmsg = CMSG_NXTHDR(&msgs[i].msg_hdr,cmsg)) {
+      if (cmsg->cmsg_type == SO_TIMESTAMP)
+	      tv = *(struct timeval *)CMSG_DATA(cmsg);
+    }
+    
+    Bags[i].TimeStamp.seconds = tv.tv_sec;
+    Bags[i].TimeStamp.microseconds = tv.tv_usec;
+    
+    if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
+      Bags[i].Flags |= (1 << 0);
+    
+    printf ("lib: message %02d: <%03x> [%02d] %02x %02x %02x %02x %02x %02x %02x %02x (%010ld.%06ld)\n", 
+      i,
+      Bags[i].Frame.can_id, Bags[i].Frame.can_dlc,
+      Bags[i].Frame.data[0],
+      Bags[i].Frame.data[1], 
+      Bags[i].Frame.data[2], 
+      Bags[i].Frame.data[3], 
+      Bags[i].Frame.data[4], 
+      Bags[i].Frame.data[5], 
+      Bags[i].Frame.data[6], 
+      Bags[i].Frame.data[7], 
+      Bags[i].TimeStamp.seconds,
+      Bags[i].TimeStamp.microseconds
+    );
   }
   
-  return gettimeofday (&tv, NULL);
-  
-//     if ( read(Socket, Frame, sizeof(struct can_frame)) == sizeof(struct can_frame) )
-//     {
-//       struct timeval tv;
-//       ioctl(Socket, SIOCGSTAMP, &tv);
-//       return gettimeofday (&tv, NULL);
-//     }
-//     else
-//     {
-//       return -1;
-//     }
+  free (ctrlmsgs);
+  free (iovs);
+  free (msgs);
+  return rcount;
 }
 
 int SocketWrite (int Socket, struct can_frame *Frame)

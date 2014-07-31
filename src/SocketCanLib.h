@@ -15,11 +15,31 @@ int SocketOpen (char *InterfaceName);
 //  При ошибке возвращает код ошибки: -1*errno в функции close()
 int SocketClose (int number);
 
-// Читает сообщение из входящий буфер сокета.
-//  При отсутсвии сообщений в буфере блокируется до появления первого
-//  Еслу удалось считать, возвращает 1
-//  При ошибке - отрицательный код ошибки
-int SocketRead (int Socket, struct can_frame *Frame);
+// FrameBag Flags
+// bit 0      : Loopback
+typedef __u8 FrameBagFlags;
+
+struct TimeVal
+{
+  unsigned int seconds;
+  unsigned int microseconds;
+};
+
+struct FrameBag
+{
+  struct can_frame Frame;
+  struct TimeVal TimeStamp;
+  FrameBagFlags Flags;
+};
+
+// Читает сообщения из входящего буфера сокета.
+//  При отсутствии сообщений в буфере блокируется до появления первого или истечении timeout
+//  При наличии сообщений читает их и записывает в Bags
+//  В случае успеха возвращает количество прочитанных сообщений (не больше BagsNumber)
+//  При ошибке - отрицательный код ошибки:
+//	-1	: Сокет закрыт
+//	-255	: Не знамо что
+int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int TimeoutMs);
 
 // Ставит сообщение в очередь SocketCan на отправку
 //  Если очередь свободна, то не блокирует
