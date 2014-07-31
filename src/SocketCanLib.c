@@ -92,8 +92,9 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
 {
   struct mmsghdr *msgs = calloc (BagsCount, sizeof (struct mmsghdr));
   struct iovec *iovs = calloc (BagsCount, sizeof (struct iovec));
-  char **ctrlmsgs = calloc(BagsCount, CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32)));
-
+  int cmsglen = (CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32)));
+  char *ctrlmsgs = alloca(BagsCount * cmsglen);
+  
   unsigned int i;
   for (i = 0; i < BagsCount; i++) {
     msgs[i].msg_hdr.msg_name = NULL;
@@ -104,58 +105,54 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
     msgs[i].msg_hdr.msg_iov = &iovs[i];
     msgs[i].msg_hdr.msg_iovlen = 1;
     
-    msgs[i].msg_hdr.msg_control = &ctrlmsgs[i];
-    msgs[i].msg_hdr.msg_controllen = CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32));
+    msgs[i].msg_hdr.msg_control = &ctrlmsgs[cmsglen*i];
+    msgs[i].msg_hdr.msg_controllen = cmsglen;
     
     msgs[i].msg_hdr.msg_flags = 0;
   }
   
   struct timespec timeout;
   timeout.tv_sec = TimeoutMs/1000;
-  timeout.tv_nsec = (TimeoutMs%1000)*1000;
+  timeout.tv_nsec = (TimeoutMs%1000)*1000000;
   
   int rcount;
   rcount = recvmmsg(Socket, msgs, BagsCount, MSG_WAITFORONE, &timeout);
   
-  printf ("lib: ------ RECV [%02d messages]------ sizeof: %02d \n", rcount, sizeof (struct FrameBag));
-  
   for (i = 0; i < rcount; i ++) {
     struct timeval tv;
-    tv.tv_sec = 777;
-    tv.tv_usec = 777;
-
     struct cmsghdr *cmsg;
     for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
 	  cmsg && (cmsg->cmsg_level == SOL_SOCKET);
 	  cmsg = CMSG_NXTHDR(&msgs[i].msg_hdr,cmsg)) {
       if (cmsg->cmsg_type == SO_TIMESTAMP)
-	      tv = *(struct timeval *)CMSG_DATA(cmsg);
+      {
+	tv = *(struct timeval *)CMSG_DATA(cmsg);
+	Bags[i].TimeStamp.seconds = tv.tv_sec;
+	Bags[i].TimeStamp.microseconds = tv.tv_usec;
+      }
     }
-    
-    Bags[i].TimeStamp.seconds = tv.tv_sec;
-    Bags[i].TimeStamp.microseconds = tv.tv_usec;
     
     if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
       Bags[i].Flags |= (1 << 0);
     
-    printf ("lib: message %02d: <%03x> [%02d] %02x %02x %02x %02x %02x %02x %02x %02x (%010ld.%06ld) +%08x\n", 
-      i,
-      Bags[i].Frame.can_id, Bags[i].Frame.can_dlc,
-      Bags[i].Frame.data[0],
-      Bags[i].Frame.data[1], 
-      Bags[i].Frame.data[2], 
-      Bags[i].Frame.data[3], 
-      Bags[i].Frame.data[4], 
-      Bags[i].Frame.data[5], 
-      Bags[i].Frame.data[6], 
-      Bags[i].Frame.data[7], 
-      Bags[i].TimeStamp.seconds,
-      Bags[i].TimeStamp.microseconds,
-      msgs[i].msg_hdr.msg_flags
-    );
+//     printf ("lib: message %02d: <%03x> [%02d] %02x %02x %02x %02x %02x %02x %02x %02x (%010ld.%06ld) +%08x\n", 
+//       i,
+//       Bags[i].Frame.can_id, Bags[i].Frame.can_dlc,
+//       Bags[i].Frame.data[0],
+//       Bags[i].Frame.data[1], 
+//       Bags[i].Frame.data[2], 
+//       Bags[i].Frame.data[3], 
+//       Bags[i].Frame.data[4], 
+//       Bags[i].Frame.data[5], 
+//       Bags[i].Frame.data[6], 
+//       Bags[i].Frame.data[7], 
+//       Bags[i].TimeStamp.seconds,
+//       Bags[i].TimeStamp.microseconds,
+//       msgs[i].msg_hdr.msg_flags
+//     );
   }
   
-  free (ctrlmsgs);
+  //free (ctrlmsgs);
   free (iovs);
   free (msgs);
   return rcount;
