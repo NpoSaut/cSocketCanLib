@@ -90,10 +90,9 @@ int SocketClose (int number)
 
 int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int TimeoutMs)
 {
-  struct mmsghdr *msgs = calloc (BagsCount, sizeof (struct mmsghdr));
-  struct iovec *iovs = calloc (BagsCount, sizeof (struct iovec));
-  int cmsglen = (CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32)));
-  char *ctrlmsgs = alloca(BagsCount * cmsglen);
+  struct mmsghdr msgs[BagsCount];
+  struct iovec iovs[BagsCount];
+  char ctrlmsgs[BagsCount][(CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32)))];
   
   unsigned int i;
   for (i = 0; i < BagsCount; i++) {
@@ -105,8 +104,8 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
     msgs[i].msg_hdr.msg_iov = &iovs[i];
     msgs[i].msg_hdr.msg_iovlen = 1;
     
-    msgs[i].msg_hdr.msg_control = &ctrlmsgs[cmsglen*i];
-    msgs[i].msg_hdr.msg_controllen = cmsglen;
+    msgs[i].msg_hdr.msg_control = &ctrlmsgs[i];
+    msgs[i].msg_hdr.msg_controllen = sizeof(ctrlmsgs[0]);
     
     msgs[i].msg_hdr.msg_flags = 0;
   }
@@ -152,9 +151,6 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
 //     );
   }
   
-  //free (ctrlmsgs);
-  free (iovs);
-  free (msgs);
   return rcount;
 }
 
