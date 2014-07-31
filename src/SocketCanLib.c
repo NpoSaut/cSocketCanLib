@@ -117,10 +117,12 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
   int rcount;
   rcount = recvmmsg(Socket, msgs, BagsCount, MSG_WAITFORONE, &timeout);
   
-  printf ("lib: ------ RECV [%02d messages]------ \n", rcount);
+  printf ("lib: ------ RECV [%02d messages]------ sizeof: %02d \n", rcount, sizeof (struct FrameBag));
   
   for (i = 0; i < rcount; i ++) {
     struct timeval tv;
+    tv.tv_sec = 777;
+    tv.tv_usec = 777;
 
     struct cmsghdr *cmsg;
     for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
@@ -136,7 +138,7 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
     if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
       Bags[i].Flags |= (1 << 0);
     
-    printf ("lib: message %02d: <%03x> [%02d] %02x %02x %02x %02x %02x %02x %02x %02x (%010ld.%06ld)\n", 
+    printf ("lib: message %02d: <%03x> [%02d] %02x %02x %02x %02x %02x %02x %02x %02x (%010ld.%06ld) +%08x\n", 
       i,
       Bags[i].Frame.can_id, Bags[i].Frame.can_dlc,
       Bags[i].Frame.data[0],
@@ -148,7 +150,8 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
       Bags[i].Frame.data[6], 
       Bags[i].Frame.data[7], 
       Bags[i].TimeStamp.seconds,
-      Bags[i].TimeStamp.microseconds
+      Bags[i].TimeStamp.microseconds,
+      msgs[i].msg_hdr.msg_flags
     );
   }
   

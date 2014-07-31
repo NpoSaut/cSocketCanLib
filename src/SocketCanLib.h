@@ -19,13 +19,13 @@ int SocketClose (int number);
 // bit 0      : Loopback
 typedef __u8 FrameBagFlags;
 
-struct TimeVal
+struct __attribute__((packed, aligned(1))) TimeVal
 {
-  unsigned int seconds;
-  unsigned int microseconds;
+  __u32 seconds;
+  __u32 microseconds;
 };
 
-struct FrameBag
+struct __attribute__((packed, aligned(1))) FrameBag
 {
   struct can_frame Frame;
   struct TimeVal TimeStamp;
