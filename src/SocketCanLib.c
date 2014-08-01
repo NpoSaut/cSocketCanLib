@@ -88,7 +88,7 @@ int SocketClose (int number)
     }
 }
 
-int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int TimeoutMs)
+int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount)
 {
   struct mmsghdr msgs[BagsCount];
   struct iovec iovs[BagsCount];
@@ -110,12 +110,8 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
     msgs[i].msg_hdr.msg_flags = 0;
   }
   
-  struct timespec timeout;
-  timeout.tv_sec = TimeoutMs/1000;
-  timeout.tv_nsec = (TimeoutMs%1000)*1000000;
-  
   int rcount;
-  rcount = recvmmsg(Socket, msgs, BagsCount, MSG_WAITFORONE, &timeout);
+  rcount = recvmmsg(Socket, msgs, BagsCount, MSG_WAITFORONE, NULL);
   
   for (i = 0; i < rcount; i ++) {
     struct timeval tv;
@@ -133,28 +129,36 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
     
     if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
       Bags[i].Flags |= (1 << 0);
-    
-//     printf ("lib: message %02d: <%03x> [%02d] %02x %02x %02x %02x %02x %02x %02x %02x (%010ld.%06ld) +%08x\n", 
-//       i,
-//       Bags[i].Frame.can_id, Bags[i].Frame.can_dlc,
-//       Bags[i].Frame.data[0],
-//       Bags[i].Frame.data[1], 
-//       Bags[i].Frame.data[2], 
-//       Bags[i].Frame.data[3], 
-//       Bags[i].Frame.data[4], 
-//       Bags[i].Frame.data[5], 
-//       Bags[i].Frame.data[6], 
-//       Bags[i].Frame.data[7], 
-//       Bags[i].TimeStamp.seconds,
-//       Bags[i].TimeStamp.microseconds,
-//       msgs[i].msg_hdr.msg_flags
-//     );
   }
   
   return rcount;
 }
 
-int SocketWrite (int Socket, struct can_frame *Frame)
+int SocketWrite (int Socket, struct can_frame *Frame, unsigned int FramesCount)
 {
-    return write(Socket, Frame, sizeof(struct can_frame)) == sizeof(struct can_frame);
+  struct mmsghdr msgs[FramesCount];
+  struct iovec iovs[FramesCount];
+  
+  unsigned int i;
+  for (i = 0; i < FramesCount; i++) {
+    msgs[i].msg_hdr.msg_name = NULL;
+    msgs[i].msg_hdr.msg_namelen = 0;
+    
+    iovs[i].iov_base = (void *) &Frame[i];
+    iovs[i].iov_len = sizeof(struct can_frame);
+    msgs[i].msg_hdr.msg_iov = &iovs[i];
+    msgs[i].msg_hdr.msg_iovlen = 1;
+  }
+  
+  int scount;
+  scount = sendmmsg(Socket, msgs, FramesCount, MSG_DONTWAIT);
+  if ( scount < 0 )
+  {
+    int errsv = errno;
+    return -errsv;
+  }
+  else
+  {
+    return scount;
+  }
 }
