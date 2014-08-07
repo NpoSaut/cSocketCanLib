@@ -71,6 +71,8 @@ int SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
     }
     
     // Размеры буферов
+    TxBuffSize = 352*TxBuffSize;
+    RxBuffSize = 352*RxBuffSize;
     if (setsockopt(number, SOL_SOCKET, SO_SNDBUF,
 		    &TxBuffSize, sizeof(TxBuffSize)) < 0) {
       perror("setsockopt SO_SNDBUF");
