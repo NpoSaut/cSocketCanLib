@@ -1,6 +1,8 @@
-#include <linux/can.h>
+// COPYRIGHT NPO SAUT
+// mailto: nazemnykh.anton@gmail.com
+// version: 2
 
-int sf (int a);
+#include <linux/can.h>
 
 // Открывает сокет на CAN-интерфейсе с именем InterfaceName
 //  В случае успеха возвращает неотрицательный хендлер сокета
@@ -8,7 +10,7 @@ int sf (int a);
 //   -100*errno для ошибок в socket()
 //   -10000*errno для ошибок в ioctl()
 //   -1000000*errno для ошибов в bind()
-int SocketOpen (char *InterfaceName);
+int SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize);
 
 // Закрывает открытый сокет
 //  В случае успеха возвращает 0
@@ -30,19 +32,25 @@ struct __attribute__((packed, aligned(1))) FrameBag
   struct can_frame Frame;
   struct TimeVal TimeStamp;
   FrameBagFlags Flags;
+  __u32 DroppedMessagesCount;
 };
 
 // Читает сообщения из входящего буфера сокета.
-//  При отсутствии сообщений в буфере блокируется до появления первого
-//  При наличии сообщений читает их и записывает в Bags
-//  В случае успеха возвращает количество прочитанных сообщений (не больше BagsNumber)
+//  Функция блокируется на время, не превыщающее TimeoutMs
+//  Читает из входящего буфера драйвера не более чем BagsCount сообщений
+//  В случае успеха возвращает количество прочитанных сообщений
 //  При ошибке - отрицательный код ошибки:
 //	-1	: Сокет закрыт
 //	-255	: Не знамо что
-int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount;
+int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int TimeoutMs);
 
 // Ставит сообщения в очередь SocketCan на отправку
 //  Если очередь свободна, то не блокирует ???
 //  Иначе блокируется до освобожения места в очереди ???
 //  Возвращает 1 в случае успеха и отрицательный код ошибки при ошибке ???
-int SocketWrite (int Socket, struct can_frame *Frame, unsigned int FramesCount);
+int SocketWrite (int Socket, struct can_frame *Frame, int FramesCount);
+
+// Очищает буфер принятых сообщений сокета
+//  Функция блокирующая
+//  При успехе возвращает 0, в случае ошибки отрицательный код ошибки
+int SocketFlushInBuff (int Socket);
