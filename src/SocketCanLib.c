@@ -44,6 +44,14 @@ int SocketOpen (char *InterfaceName)
     int recv_own_msgs = 1; /* 0 = disabled (default), 1 = enabled */
     setsockopt(number, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS,
                &recv_own_msgs, sizeof(recv_own_msgs));
+    // Нужно для того, чтобы не вырезался родитель skb->sk,
+    // по которому происходит определение своего пакета  
+    const int timestamping_on = 1;
+    if (setsockopt(number, SOL_SOCKET, SO_TIMESTAMPING,
+		    &timestamping_on, sizeof(timestamping_on)) < 0) {
+      perror("setsockopt SO_TIMESTAMPING");
+      return -9;
+    }
     
     // Timestamp
     const int timestamp_on = 1;
