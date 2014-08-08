@@ -54,4 +54,4 @@ int SocketWrite (int Socket, struct can_frame *Frame, int FramesCount);
 // Очищает буфер принятых сообщений сокета
 //  Функция блокирующая
 //  При успехе возвращает 0, в случае ошибки отрицательный код ошибки
-int SocketFlushInBuff (int Socket);
+int SocketFlushInBuffer (int Socket);

@@ -141,7 +141,6 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
   }
   
   int rcount;
- // rcount = recvmmsg(Socket, msgs, BagsCount, MSG_WAITFORONE, NULL);
   rcount = recvmmsg(Socket, msgs, BagsCount, MSG_DONTWAIT, NULL);
   if (rcount >= 0)
   {  
@@ -207,7 +206,7 @@ int SocketWrite (int Socket, struct can_frame *Frame, int FramesCount)
   }
 }
 
-int SocketFlushInBuff (int Socket)
+int SocketFlushInBuffer (int Socket)
 {
   struct FrameBag bags[10];
   
