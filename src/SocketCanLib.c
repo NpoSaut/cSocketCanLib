@@ -94,6 +94,7 @@ int SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
     
     // Биндим сокет на нужный интерфейс
     struct sockaddr_can addr;
+    memset(&addr, 0, sizeof(addr));
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
     if ( bind(number, (struct sockaddr*)&addr, sizeof(addr)) != 0 )
@@ -144,24 +145,27 @@ int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int T
   rcount = recvmmsg(Socket, msgs, BagsCount, MSG_DONTWAIT, NULL);
   if (rcount >= 0)
   {  
-    for (i = 0; i < rcount; i ++) {
-      struct timeval tv;
-      struct cmsghdr *cmsg;
-      for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
-	    cmsg && (cmsg->cmsg_level == SOL_SOCKET);
-	    cmsg = CMSG_NXTHDR(&msgs[i].msg_hdr,cmsg)) {
-	if (cmsg->cmsg_type == SO_TIMESTAMP)
-	{
-	  tv = *(struct timeval *)CMSG_DATA(cmsg);
-	  Bags[i].TimeStamp.seconds = tv.tv_sec;
-	  Bags[i].TimeStamp.microseconds = tv.tv_usec;
-	}
-	else if (cmsg->cmsg_type == SO_RXQ_OVFL)
-	  Bags[i].DroppedMessagesCount = *(__u32 *)CMSG_DATA(cmsg);
-      }
-      
-      if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
-	Bags[i].Flags |= (1 << 0);
+    for (i = 0; i < rcount; i ++)
+    {
+        struct timeval tv;
+        struct cmsghdr *cmsg;
+
+        for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
+            cmsg && (cmsg->cmsg_level == SOL_SOCKET);
+            cmsg = CMSG_NXTHDR(&msgs[i].msg_hdr,cmsg))
+        {
+            if (cmsg->cmsg_type == SO_TIMESTAMP)
+            {
+              tv = *(struct timeval *)CMSG_DATA(cmsg);
+              Bags[i].TimeStamp.seconds = tv.tv_sec;
+              Bags[i].TimeStamp.microseconds = tv.tv_usec;
+            }
+            else if (cmsg->cmsg_type == SO_RXQ_OVFL)
+              Bags[i].DroppedMessagesCount = *(__u32 *)CMSG_DATA(cmsg);
+        }
+
+        if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
+            Bags[i].Flags |= (1 << 0);
     }
     return rcount;
   }
