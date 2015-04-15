@@ -16,7 +16,7 @@
 
 #include "SocketJ1939Lib.h"
 
-int SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
+int J1939SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
 {
     int number;
 
@@ -86,7 +86,7 @@ int SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
     return number;
 }
 
-int SocketClose (int number)
+int J1939SocketClose (int number)
 {
     if ( close (number) != 0)
     {
@@ -99,7 +99,7 @@ int SocketClose (int number)
     }
 }
 
-int SocketRead (int Socket, J1939FrameBag *Bags, unsigned int BagsCount, int TimeoutMs)
+int J1939SocketRead (int Socket, struct J1939FrameBag *Bags, unsigned int BagsCount, int TimeoutMs)
 {
     struct mmsghdr msgs[BagsCount];
     struct iovec iovs[BagsCount];
@@ -173,7 +173,7 @@ int SocketRead (int Socket, J1939FrameBag *Bags, unsigned int BagsCount, int Tim
     }
 }
 
-int SocketWrite (int Socket, J1939Frame *Frame, int FramesCount)
+int J1939SocketWrite (int Socket, struct J1939Frame *Frame, int FramesCount)
 {
     struct mmsghdr msgs[FramesCount];
     struct iovec iovs[FramesCount];
@@ -182,9 +182,9 @@ int SocketWrite (int Socket, J1939Frame *Frame, int FramesCount)
     unsigned int i;
     for (i = 0; i < FramesCount; i++)
     {
-        memset (msgs[i], 0, sizeof (msgs[0]));
-        memset (iovs[i], 0, sizeof (iovs[0]));
-        memset (addr[i], 0, sizeof (addr[0]));
+        memset (&msgs[i], 0, sizeof (msgs[0]));
+        memset (&iovs[i], 0, sizeof (iovs[0]));
+        memset (&addr[i], 0, sizeof (addr[0]));
 
         addr[i].can_addr.j1939.name = J1939_NO_NAME;
         addr[i].can_addr.j1939.addr = J1939_NO_ADDR;
@@ -212,14 +212,14 @@ int SocketWrite (int Socket, J1939Frame *Frame, int FramesCount)
     }
 }
 
-int SocketFlushInBuffer (int Socket)
+int J1939SocketFlushInBuffer (int Socket)
 {
-  struct FrameBag bags[10];
+  struct J1939FrameBag bags[10];
 
   int lost = 1;
   while (lost)
   {
-    lost = SocketRead (Socket, bags, 10, 1);
+    lost = J1939SocketRead (Socket, bags, 10, 1);
     if (lost < 0)
       return lost;
   }
