@@ -119,64 +119,80 @@ int SocketClose (int number)
     }
 }
 
+void initTimers (struct timeval *now, struct timeval *end, int timeoutMs)
+{
+    gettimeofday (now, NULL);
+
+    struct timeval timeout;
+    timeout.tv_sec = timeoutMs / 1000;
+    timeout.tv_usec = (timeoutMs % 1000) * 1000;
+    timeradd (now, &timeout, end);
+}
+
 int SocketRead (int Socket, struct FrameBag *Bags, unsigned int BagsCount, int TimeoutMs)
 {
-  struct mmsghdr msgs[BagsCount];
-  struct iovec iovs[BagsCount];
-  char ctrlmsgs[BagsCount][(CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32)))];
-  
-  unsigned int i;
-  for (i = 0; i < BagsCount; i++) {
-    msgs[i].msg_hdr.msg_name = NULL;
-    msgs[i].msg_hdr.msg_namelen = 0;
-    
-    iovs[i].iov_base = (void *) &Bags[i];
-    iovs[i].iov_len = sizeof(struct can_frame);
-    msgs[i].msg_hdr.msg_iov = &iovs[i];
-    msgs[i].msg_hdr.msg_iovlen = 1;
-    
-    msgs[i].msg_hdr.msg_control = &ctrlmsgs[i];
-    msgs[i].msg_hdr.msg_controllen = sizeof(ctrlmsgs[0]);
-    
-    msgs[i].msg_hdr.msg_flags = 0;
-  }
-  
-  int rcount;
-  rcount = recvmmsg(Socket, msgs, BagsCount, MSG_DONTWAIT, NULL);
-  if (rcount >= 0)
-  {  
-    for (i = 0; i < rcount; i ++)
+    struct mmsghdr msgs[BagsCount];
+    struct iovec iovs[BagsCount];
+    char ctrlmsgs[BagsCount][(CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32)))];
+
+    unsigned int i;
+    for (i = 0; i < BagsCount; i++)
     {
-        struct timeval tv;
-        struct cmsghdr *cmsg;
+        msgs[i].msg_hdr.msg_name = NULL;
+        msgs[i].msg_hdr.msg_namelen = 0;
 
-        for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
-            cmsg && (cmsg->cmsg_level == SOL_SOCKET);
-            cmsg = CMSG_NXTHDR(&msgs[i].msg_hdr,cmsg))
-        {
-            if (cmsg->cmsg_type == SO_TIMESTAMP)
-            {
-              tv = *(struct timeval *)CMSG_DATA(cmsg);
-              Bags[i].TimeStamp.seconds = tv.tv_sec;
-              Bags[i].TimeStamp.microseconds = tv.tv_usec;
-            }
-            else if (cmsg->cmsg_type == SO_RXQ_OVFL)
-              Bags[i].DroppedMessagesCount = *(__u32 *)CMSG_DATA(cmsg);
-        }
+        iovs[i].iov_base = (void *) &Bags[i];
+        iovs[i].iov_len = sizeof(struct can_frame);
+        msgs[i].msg_hdr.msg_iov = &iovs[i];
+        msgs[i].msg_hdr.msg_iovlen = 1;
 
-        if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
-            Bags[i].Flags |= (1 << 0);
+        msgs[i].msg_hdr.msg_control = &ctrlmsgs[i];
+        msgs[i].msg_hdr.msg_controllen = sizeof(ctrlmsgs[0]);
+
+        msgs[i].msg_hdr.msg_flags = 0;
     }
-    return rcount;
-  }
-  else
-  {
-    int errsv = errno;
-    if (errsv == EAGAIN)
-      return 0;
-    else
-      return errsv;
-  }
+
+    struct timeval tNow, tEnd;
+    for ( initTimers(&tNow, &tEnd, TimeoutMs); timercmp(&tNow, &tEnd, <); gettimeofday (&tNow, NULL) )
+    {
+        int rcount;
+        rcount = recvmmsg(Socket, msgs, BagsCount, MSG_DONTWAIT, NULL);
+        if (rcount >= 0)
+        {
+            for (i = 0; i < rcount; i ++)
+            {
+                struct timeval tv;
+                struct cmsghdr *cmsg;
+
+                for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
+                    cmsg && (cmsg->cmsg_level == SOL_SOCKET);
+                    cmsg = CMSG_NXTHDR(&msgs[i].msg_hdr,cmsg))
+                {
+                    if (cmsg->cmsg_type == SO_TIMESTAMP)
+                    {
+                      tv = *(struct timeval *)CMSG_DATA(cmsg);
+                      Bags[i].TimeStamp.seconds = tv.tv_sec;
+                      Bags[i].TimeStamp.microseconds = tv.tv_usec;
+                    }
+                    else if (cmsg->cmsg_type == SO_RXQ_OVFL)
+                      Bags[i].DroppedMessagesCount = *(__u32 *)CMSG_DATA(cmsg);
+                }
+
+                if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
+                    Bags[i].Flags |= (1 << 0);
+            }
+            return rcount;
+        }
+        else
+        {
+            int errsv = errno;
+            if (errsv == EAGAIN)
+                continue;
+            else
+                return errsv;
+        }
+    }
+    return 0;
 }
 
 int SocketWrite (int Socket, struct can_frame *Frame, int FramesCount)
