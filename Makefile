@@ -21,7 +21,7 @@ test_static_send: library_static
 
 test_shared_receive: library_shared
 	$(CROSS_COMPILE)gcc $(CFLAGS) $(SOURCE_DIR)/test_receive.c -o test_shared_receive -L. -lSocketCanLib
-	$(CROSS_COMPILE)gcc $(SOURCE_DIR)/test_receive.c -o test_shared_receive -L. -lSocketCanLib
+	$(CROSS_COMPILE)gcc $(CFLAGS) $(SOURCE_DIR)/test_j1939_receive.c -o test_shared_j1939_receive -L. -lSocketJ1939Lib
 
 library_shared: library_object
 	$(CROSS_COMPILE)gcc $(CFLAGS) -shared -Wl,-soname,libSocketCanLib.so.$(VERSION) -o libSocketCanLib.so.$(VERSION) SocketCanLib.o

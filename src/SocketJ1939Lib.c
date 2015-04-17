@@ -77,7 +77,7 @@ int J1939SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
     addr.can_addr.j1939.name = J1939_NO_NAME;
     addr.can_addr.j1939.addr = J1939_NO_ADDR;
     addr.can_addr.j1939.pgn = J1939_NO_PGN;
-    if ( bind(number, (struct sockaddr*)&addr, sizeof(addr)) != 0 )
+    if ( bind(number, (void *)&addr, sizeof(addr)) < 0 )
     {
         int errsv = errno;
         return -1000000*errsv;
@@ -99,12 +99,27 @@ int J1939SocketClose (int number)
     }
 }
 
+void initTimers (struct timeval *now, struct timeval *end, int timeoutMs)
+{
+    gettimeofday (now, NULL);
+
+    struct timeval timeout;
+    timeout.tv_sec = timeoutMs / 1000;
+    timeout.tv_usec = (timeoutMs % 1000) * 1000;
+    timeradd (now, &timeout, end);
+}
+
 int J1939SocketRead (int Socket, struct J1939FrameBag *Bags, unsigned int BagsCount, int TimeoutMs)
 {
     struct mmsghdr msgs[BagsCount];
     struct iovec iovs[BagsCount];
     struct sockaddr_can addr[BagsCount];
-    char ctrlmsgs[BagsCount][(CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32)))];
+    char ctrlmsgs[BagsCount][
+            CMSG_SPACE(sizeof(struct timeval))
+          + CMSG_SPACE(sizeof(__u8)) /* dest addr */
+          + CMSG_SPACE(sizeof(__u64)) /* dest name */
+          + CMSG_SPACE(sizeof(__u8)) /* priority */
+          ];
 
     unsigned int i;
     for (i = 0; i < BagsCount; i++)
@@ -126,51 +141,57 @@ int J1939SocketRead (int Socket, struct J1939FrameBag *Bags, unsigned int BagsCo
         msgs[i].msg_hdr.msg_flags = 0;
     }
 
-    int rcount;
-    rcount = recvmmsg(Socket, msgs, BagsCount, MSG_DONTWAIT, NULL);
-    if (rcount >= 0)
+    struct timeval tNow, tEnd;
+    for ( initTimers(&tNow, &tEnd, TimeoutMs); timercmp(&tNow, &tEnd, <); gettimeofday (&tNow, NULL) )
     {
-        for (i = 0; i < rcount; i ++)
+        int rcount;
+        rcount = recvmmsg(Socket, msgs, BagsCount, MSG_DONTWAIT, NULL);
+        if (rcount >= 0)
         {
-            struct timeval tv;
-            struct cmsghdr *cmsg;
-
-            for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
-                cmsg;
-                cmsg = CMSG_NXTHDR(&msgs[i].msg_hdr,cmsg))
+            for (i = 0; i < rcount; i ++)
             {
-                switch (cmsg->cmsg_level) {
-                case SOL_SOCKET:
-                    if (cmsg->cmsg_type == SO_TIMESTAMP)
-                    {
-                        tv = *(struct timeval *)CMSG_DATA(cmsg);
-                        Bags[i].TimeStamp.seconds = tv.tv_sec;
-                        Bags[i].TimeStamp.microseconds = tv.tv_usec;
+                struct timeval tv;
+                struct cmsghdr *cmsg;
+
+                for (cmsg = CMSG_FIRSTHDR(&msgs[i].msg_hdr);
+                    cmsg;
+                    cmsg = CMSG_NXTHDR(&msgs[i].msg_hdr,cmsg))
+                {
+                    switch (cmsg->cmsg_level) {
+                    case SOL_SOCKET:
+                        if (cmsg->cmsg_type == SO_TIMESTAMP)
+                        {
+                            tv = *(struct timeval *)CMSG_DATA(cmsg);
+                            Bags[i].TimeStamp.seconds = tv.tv_sec;
+                            Bags[i].TimeStamp.microseconds = tv.tv_usec;
+                        }
+                        else if (cmsg->cmsg_type == SO_RXQ_OVFL)
+                            Bags[i].DroppedMessagesCount = *(__u32 *)CMSG_DATA(cmsg);
+                        break;
+                    case SOL_CAN_J1939:
+
+                        break;
                     }
-                    else if (cmsg->cmsg_type == SO_RXQ_OVFL)
-                        Bags[i].DroppedMessagesCount = *(__u32 *)CMSG_DATA(cmsg);
-                    break;
-                case SOL_CAN_J1939:
-
-                    break;
                 }
+
+                Bags[i].Frame.pgn = addr[i].can_addr.j1939.pgn;
+                Bags[i].Frame.length = msgs[i].msg_len;
+
+                if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
+                    Bags[i].Flags |= (1 << 0);
             }
-
-            Bags[i].Frame.pgn = addr[i].can_addr.j1939.pgn;
-
-            if (msgs[i].msg_hdr.msg_flags & MSG_CONFIRM)
-                Bags[i].Flags |= (1 << 0);
+            return rcount;
         }
-        return rcount;
-    }
-    else
-    {
-        int errsv = errno;
-        if (errsv == EAGAIN)
-          return 0;
         else
-          return errsv;
+        {
+            int errsv = errno;
+            if (errsv == EAGAIN)
+              continue;
+            else
+              return errsv;
+        }
     }
+    return 0;
 }
 
 int J1939SocketWrite (int Socket, struct J1939Frame *Frame, int FramesCount)

@@ -32,6 +32,7 @@ struct __attribute__((packed, aligned(1))) TimeVal
 struct __attribute__((packed, aligned(1))) J1939Frame
 {
   __u32 pgn;
+  __u32 length;
   __u8 data[J1939MaxDataLen];
 };
 
