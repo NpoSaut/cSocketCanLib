@@ -194,44 +194,44 @@ int J1939SocketRead (int Socket, struct J1939FrameBag *Bags, unsigned int BagsCo
     return 0;
 }
 
-int J1939SocketWrite (int Socket, struct J1939Frame *Frame, int FramesCount)
-{
-    struct mmsghdr msgs[FramesCount];
-    struct iovec iovs[FramesCount];
-    struct sockaddr_can addr[FramesCount];
+//int J1939SocketWrite (int Socket, struct J1939Frame *Frame, int FramesCount)
+//{
+//    struct mmsghdr msgs[FramesCount];
+//    struct iovec iovs[FramesCount];
+//    struct sockaddr_can addr[FramesCount];
 
-    unsigned int i;
-    for (i = 0; i < FramesCount; i++)
-    {
-        memset (&msgs[i], 0, sizeof (msgs[0]));
-        memset (&iovs[i], 0, sizeof (iovs[0]));
-        memset (&addr[i], 0, sizeof (addr[0]));
+//    unsigned int i;
+//    for (i = 0; i < FramesCount; i++)
+//    {
+//        memset (&msgs[i], 0, sizeof (msgs[0]));
+//        memset (&iovs[i], 0, sizeof (iovs[0]));
+//        memset (&addr[i], 0, sizeof (addr[0]));
 
-        addr[i].can_addr.j1939.name = J1939_NO_NAME;
-        addr[i].can_addr.j1939.addr = J1939_NO_ADDR;
-        addr[i].can_addr.j1939.pgn = Frame[i].pgn;
+//        addr[i].can_addr.j1939.name = J1939_NO_NAME;
+//        addr[i].can_addr.j1939.addr = J1939_NO_ADDR;
+//        addr[i].can_addr.j1939.pgn = Frame[i].pgn;
 
-        msgs[i].msg_hdr.msg_name = &addr[i];;
-        msgs[i].msg_hdr.msg_namelen = sizeof(addr[i]);
+//        msgs[i].msg_hdr.msg_name = &addr[i];;
+//        msgs[i].msg_hdr.msg_namelen = sizeof(addr[i]);
 
-        iovs[i].iov_base = (void *) &(Frame[i].data);
-        iovs[i].iov_len = sizeof(Frame[i].data);
-        msgs[i].msg_hdr.msg_iov = &iovs[i];
-        msgs[i].msg_hdr.msg_iovlen = 1;
-    }
+//        iovs[i].iov_base = (void *) &(Frame[i].data);
+//        iovs[i].iov_len = Frame[i].length;
+//        msgs[i].msg_hdr.msg_iov = &iovs[i];
+//        msgs[i].msg_hdr.msg_iovlen = 1;
+//    }
 
-    int scount;
-    scount = sendmmsg(Socket, msgs, FramesCount, 0);
-    if ( scount < 0 )
-    {
-        int errsv = errno;
-        return -errsv;
-    }
-    else
-    {
-        return scount;
-    }
-}
+//    int scount;
+//    scount = sendmmsg(Socket, msgs, FramesCount, 0);
+//    if ( scount < 0 )
+//    {
+//        int errsv = errno;
+//        return -errsv;
+//    }
+//    else
+//    {
+//        return scount;
+//    }
+//}
 
 int J1939SocketFlushInBuffer (int Socket)
 {

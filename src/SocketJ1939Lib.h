@@ -57,7 +57,7 @@ int J1939SocketRead (int Socket, struct J1939FrameBag *Bags, unsigned int BagsCo
 //  Если очередь свободна, то не блокирует ???
 //  Иначе блокируется до освобожения места в очереди ???
 //  Возвращает 1 в случае успеха и отрицательный код ошибки при ошибке ???
-int J1939SocketWrite (int Socket, struct J1939Frame *Frame, int FramesCount);
+//int J1939SocketWrite (int Socket, struct J1939Frame *Frame, int FramesCount);
 
 // Очищает буфер принятых сообщений сокета
 //  Функция блокирующая
