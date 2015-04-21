@@ -1,3 +1,5 @@
+#ifdef LIB_SOCKET_J1939
+
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +18,7 @@
 
 #include "SocketJ1939Lib.h"
 
-int J1939SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
+int J1939SocketOpen (const char *InterfaceName, int TxBuffSize, int RxBuffSize)
 {
     int number;
 
@@ -246,3 +248,5 @@ int J1939SocketFlushInBuffer (int Socket)
   }
   return 0;
 }
+
+#endif
