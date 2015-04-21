@@ -11,7 +11,7 @@
 //   -100*errno для ошибок в socket()
 //   -10000*errno для ошибок в ioctl()
 //   -1000000*errno для ошибов в bind()
-int J1939SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize);
+int J1939SocketOpen (const char *InterfaceName, int TxBuffSize, int RxBuffSize);
 
 // Закрывает открытый сокет
 //  В случае успеха возвращает 0

@@ -16,7 +16,7 @@
 
 #include "SocketJ1939Lib.h"
 
-int J1939SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
+int J1939SocketOpen (const char *InterfaceName, int TxBuffSize, int RxBuffSize)
 {
     int number;
 
@@ -77,7 +77,7 @@ int J1939SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
     addr.can_addr.j1939.name = J1939_NO_NAME;
     addr.can_addr.j1939.addr = J1939_NO_ADDR;
     addr.can_addr.j1939.pgn = J1939_NO_PGN;
-    if ( bind(number, (void *)&addr, sizeof(addr)) < 0 )
+    if ( bind(number, (const sockaddr *)&addr, sizeof(addr)) < 0 )
     {
         int errsv = errno;
         return -1000000*errsv;
