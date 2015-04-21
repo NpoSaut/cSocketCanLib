@@ -16,16 +16,16 @@ test: test_static_send test_shared_receive
 	./test_static_send
 
 test_static_send: library_static
-	$(CROSS_COMPILE)gcc $(CFLAGS) -DLIB_SOCKET_J1939 -static $(SOURCE_DIR)/test_send.c -L. -lSocketCanLib -o test_static_send
-	$(CROSS_COMPILE)gcc $(CFLAGS) -DLIB_SOCKET_J1939 -static $(SOURCE_DIR)/test_j1939_send.c -L. -lSocketJ1939Lib -o test_static_j1939_send
+	$(CROSS_COMPILE)gcc $(CFLAGS) -static $(SOURCE_DIR)/test_send.c -L. -lSocketCanLib -o test_static_send
+	$(CROSS_COMPILE)gcc $(CFLAGS) -static $(SOURCE_DIR)/test_j1939_send.c -L. -lSocketJ1939Lib -o test_static_j1939_send
 
 test_shared_receive: library_shared
-	$(CROSS_COMPILE)gcc $(CFLAGS) -DLIB_SOCKET_J1939 $(SOURCE_DIR)/test_receive.c -o test_shared_receive -L. -lSocketCanLib
-	$(CROSS_COMPILE)gcc $(CFLAGS) -DLIB_SOCKET_J1939 $(SOURCE_DIR)/test_j1939_receive.c -o test_shared_j1939_receive -L. -lSocketJ1939Lib
+	$(CROSS_COMPILE)gcc $(CFLAGS) $(SOURCE_DIR)/test_receive.c -o test_shared_receive -L. -lSocketCanLib
+	$(CROSS_COMPILE)gcc $(CFLAGS) $(SOURCE_DIR)/test_j1939_receive.c -o test_shared_j1939_receive -L. -lSocketJ1939Lib
 
 library_shared: library_object
-	$(CROSS_COMPILE)gcc $(CFLAGS) -DLIB_SOCKET_J1939 -shared -Wl,-soname,libSocketCanLib.so.$(VERSION) -o libSocketCanLib.so.$(VERSION) SocketCanLib.o
-	$(CROSS_COMPILE)gcc $(CFLAGS) -DLIB_SOCKET_J1939 -shared -Wl,-soname,libSocketJ1939Lib.so.$(VERSION) -o libSocketJ1939Lib.so.$(VERSION) SocketJ1939Lib.o
+	$(CROSS_COMPILE)gcc $(CFLAGS) -shared -Wl,-soname,libSocketCanLib.so.$(VERSION) -o libSocketCanLib.so.$(VERSION) SocketCanLib.o
+	$(CROSS_COMPILE)gcc $(CFLAGS) -shared -Wl,-soname,libSocketJ1939Lib.so.$(VERSION) -o libSocketJ1939Lib.so.$(VERSION) SocketJ1939Lib.o
 	cp libSocketCanLib.so.$(VERSION) $(OUTPUT_DIR)/
 	cp libSocketJ1939Lib.so.$(VERSION) $(OUTPUT_DIR)/
 
@@ -36,8 +36,8 @@ library_static: library_object
 	cp libSocketJ1939Lib.a $(OUTPUT_DIR)/
 
 library_object:
-	$(CROSS_COMPILE)gcc $(CFLAGS) -DLIB_SOCKET_J1939 -c -fPIC $(SOURCE_DIR)/SocketCanLib.c -o SocketCanLib.o
-	$(CROSS_COMPILE)gcc $(CFLAGS) -DLIB_SOCKET_J1939 -c -fPIC $(SOURCE_DIR)/SocketJ1939Lib.c -o SocketJ1939Lib.o
+	$(CROSS_COMPILE)gcc $(CFLAGS) -c -fPIC $(SOURCE_DIR)/SocketCanLib.c -o SocketCanLib.o
+	$(CROSS_COMPILE)gcc $(CFLAGS) -c -fPIC $(SOURCE_DIR)/SocketJ1939Lib.c -o SocketJ1939Lib.o
 
 clean_temp:
 	rm -rf *.o *.a *.dll *.so.* test_*

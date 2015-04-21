@@ -1,8 +1,6 @@
 // COPYRIGHT NPO SAUT
 // mailto: nazemnykh.anton@gmail.com
-// version: 2
-
-#ifdef LIB_SOCKET_J1939
+// version: 1
 
 #include <linux/can.h>
 
@@ -13,12 +11,12 @@
 //   -100*errno для ошибок в socket()
 //   -10000*errno для ошибок в ioctl()
 //   -1000000*errno для ошибов в bind()
-extern int J1939SocketOpen (const char *InterfaceName, int TxBuffSize, int RxBuffSize);
+int J1939SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize);
 
 // Закрывает открытый сокет
 //  В случае успеха возвращает 0
 //  При ошибке возвращает код ошибки: -1*errno в функции close()
-extern int J1939SocketClose (int number);
+int J1939SocketClose (int number);
 
 // FrameBag Flags
 // bit 0      : Loopback
@@ -53,17 +51,15 @@ struct __attribute__((packed, aligned(1))) J1939FrameBag
 //  При ошибке - отрицательный код ошибки:
 //	-1	: Сокет закрыт
 //	-255	: Не знамо что
-extern int J1939SocketRead (int Socket, struct J1939FrameBag *Bags, unsigned int BagsCount, int TimeoutMs);
+int J1939SocketRead (int Socket, struct J1939FrameBag *Bags, unsigned int BagsCount, int TimeoutMs);
 
 // Ставит сообщения в очередь SocketCan на отправку
 //  Если очередь свободна, то не блокирует ???
 //  Иначе блокируется до освобожения места в очереди ???
 //  Возвращает 1 в случае успеха и отрицательный код ошибки при ошибке ???
-//extern int J1939SocketWrite (int Socket, struct J1939Frame *Frame, int FramesCount);
+//int J1939SocketWrite (int Socket, struct J1939Frame *Frame, int FramesCount);
 
 // Очищает буфер принятых сообщений сокета
 //  Функция блокирующая
 //  При успехе возвращает 0, в случае ошибки отрицательный код ошибки
-extern int J1939SocketFlushInBuffer (int Socket);
-
-#endif
+int J1939SocketFlushInBuffer (int Socket);
