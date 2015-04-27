@@ -1,4 +1,7 @@
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -29,6 +32,8 @@ int J1939SocketOpen (const char *InterfaceName, int TxBuffSize, int RxBuffSize)
     }
 
     const int disable = 0, enable = 1; // Для использования в setsockopt
+    (void) disable;
+    (void) enable;
 
     // Приём всех сообщений (не только адресованных нам)
     if ( setsockopt(number, SOL_CAN_J1939, SO_J1939_PROMISC, &enable, sizeof(int)) < 0 )
@@ -77,7 +82,7 @@ int J1939SocketOpen (const char *InterfaceName, int TxBuffSize, int RxBuffSize)
     addr.can_addr.j1939.name = J1939_NO_NAME;
     addr.can_addr.j1939.addr = J1939_NO_ADDR;
     addr.can_addr.j1939.pgn = J1939_NO_PGN;
-    if ( bind(number, (const sockaddr *)&addr, sizeof(addr)) < 0 )
+    if ( bind(number, (const struct sockaddr *)&addr, sizeof(addr)) < 0 )
     {
         int errsv = errno;
         return -1000000*errsv;
@@ -148,6 +153,7 @@ int J1939SocketRead (int Socket, struct J1939FrameBag *Bags, unsigned int BagsCo
         rcount = recvmmsg(Socket, msgs, BagsCount, MSG_DONTWAIT, NULL);
         if (rcount >= 0)
         {
+            int i;
             for (i = 0; i < rcount; i ++)
             {
                 struct timeval tv;
