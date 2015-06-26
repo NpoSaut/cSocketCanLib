@@ -1,4 +1,7 @@
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -16,7 +19,7 @@
 
 #include "SocketCanLib.h"
 
-int SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
+int SocketOpen (const char *InterfaceName, int TxBuffSize, int RxBuffSize)
 {
     int number;
 
@@ -97,7 +100,7 @@ int SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize)
     memset(&addr, 0, sizeof(addr));
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
-    if ( bind(number, (struct sockaddr*)&addr, sizeof(addr)) != 0 )
+    if ( bind(number, (const struct sockaddr*)&addr, sizeof(addr)) != 0 )
     {
 	int errsv = errno;
 	return -1000000*errsv;

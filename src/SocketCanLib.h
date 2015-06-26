@@ -2,6 +2,7 @@
 // mailto: nazemnykh.anton@gmail.com
 // version: 2
 
+#include <sys/socket.h> // for sa_familty_t in linux/can.h
 #include <linux/can.h>
 
 // Открывает сокет на CAN-интерфейсе с именем InterfaceName
@@ -11,7 +12,7 @@
 //   -100*errno для ошибок в socket()
 //   -10000*errno для ошибок в ioctl()
 //   -1000000*errno для ошибов в bind()
-int SocketOpen (char *InterfaceName, int TxBuffSize, int RxBuffSize);
+extern int SocketOpen (const char *InterfaceName, int TxBuffSize, int RxBuffSize);
 
 // Закрывает открытый сокет
 //  В случае успеха возвращает 0
